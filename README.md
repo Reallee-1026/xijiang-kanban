@@ -65,20 +65,23 @@ python build_standalone.py
 ### 方式四：托管到公网静态站（不用一直开电脑）——已经做好了
 
 **公网地址：<https://xijiang-kanban.netlify.app/>**
+**代码仓库：<https://github.com/Reallee-1026/xijiang-kanban>**
 
 任何手机、任何网络、任何时间都能直接打开，不需要这台电脑开机，也不需要连同一个 WiFi。
-托管在 Netlify（免费计划），站点只放一个 `_pub/index.html`（约 45 KB），不涉及服务器。
+托管在 Netlify（免费计划），由 GitHub 仓库自动部署，不涉及服务器。
 
 - 待闸数：打开页面即直连广西水运官网接口，永远是最新的
-- 水位 / 减载 / 历史曲线：用的是打包时的快照，所以要更新就重新发布（见下）
+- 水位 / 减载 / 历史曲线：用的是提交到仓库那份 `data.js` 的快照，要更新就重新提交一次（见下）
 
 **更新公网版本（每次改了页面或想刷新水位快照）**：
 
-1. 双击 `打包.bat`（会自动更新 `西江看板.html` 和 `_pub/index.html`）
-2. 打开 <https://app.netlify.com/projects/xijiang-kanban/deploys>
-3. 把 `E:\AILearn\ship\_pub\index.html` 拖进页面下方的拖放区
-4. 十几秒后自动生效，手机上刷新即可
+1. 双击 `打包.bat`（更新 `data.js`、`西江看板.html`、`_pub/index.html`）
+2. 打开 <https://github.com/Reallee-1026/xijiang-kanban>，把改动的文件拖进仓库页面（Add file → Upload files），提交
+3. Netlify 收到提交后自动重新部署，约十几秒生效，手机上刷新即可
 
+> 会 git 的话更简单：`git add -A && git commit -m "update" && git push`，一样自动发布。
+> 网站在 Netlify 的控制台：<https://app.netlify.com/projects/xijiang-kanban>（Deploys 页可看每次部署、也支持一键回滚到旧版本）。
+> 旧的单文件版仍留在 <https://xijiang-kanban-old.netlify.app/>（手工拖文件更新，作备份用）。
 > Netlify 的免费站点带一个小的 "Powered by Netlify" 角标，不影响使用；只有绑定自己的域名才能去掉。
 
 ## 手动更新数据
