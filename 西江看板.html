@@ -1,0 +1,1126 @@
+<!-- 单文件版，生成时间 2026-11-09 22:40:45；待闸数为打开时实时拉取，水位为打包时快照 -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>西江水情与船闸待闸看板</title>
+<style>
+:root{
+  --bg:#f4f7fb; --panel:#ffffff; --panel2:#f8fafd;
+  --line:#e2e8f2; --line2:#eef2f8;
+  --txt:#1b2637; --sub:#51637a; --dim:#8794a8;
+  --up:#2563eb; --down:#e07a1f; --prio:#7c5cf0; --ok:#12925f; --warn:#b45309; --bad:#d92d20;
+  --r:14px;
+  --shadow:0 1px 2px rgba(17,29,50,.05),0 6px 16px -8px rgba(17,29,50,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:
+    radial-gradient(1200px 600px at 8% -14%,#e8f0fd 0%,transparent 62%),
+    radial-gradient(900px 500px at 100% -8%,#eef1fe 0%,transparent 58%),
+    var(--bg);
+  color:var(--txt);
+  font-family:"Segoe UI","Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+  font-size:14px;line-height:1.62;
+  padding:26px 30px 56px;max-width:1500px;margin:0 auto;
+  counter-reset:sec;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--up);text-decoration:none}
+a:hover{text-decoration:underline}
+h1{font-size:21px;font-weight:650;letter-spacing:.01em;color:#16233a}
+
+/* ---------- 页头 ---------- */
+.head{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.head .upd{margin-left:auto;display:flex;align-items:center;gap:10px;color:var(--dim);font-size:12.5px;flex-wrap:wrap}
+.src{color:var(--dim);font-size:11.5px;margin:12px 0 22px;line-height:1.8}
+
+/* ---------- 栅格 ---------- */
+.grid{display:grid;gap:16px}
+.cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.cols-water{grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch}
+.cols-water>.card:first-child{display:flex;flex-direction:column}
+.cols-water>.card:first-child .kvs{margin-top:0;padding-top:14px}
+.cols-water>.card:first-child .wz-main{flex:1;display:flex;flex-direction:column;justify-content:center}
+.charts{display:grid;grid-template-columns:1fr;gap:16px}
+
+/* ---------- 卡片 ---------- */
+.card{
+  background:var(--panel);
+  border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;
+  box-shadow:var(--shadow);
+  transition:border-color .18s,box-shadow .18s,transform .18s;
+}
+.card:hover{border-color:#cfd9e8;box-shadow:0 2px 4px rgba(17,29,50,.06),0 14px 28px -12px rgba(17,29,50,.2);transform:translateY(-1px)}
+.card h3{font-size:12.5px;color:var(--sub);font-weight:500;letter-spacing:.02em;margin-bottom:14px;min-height:18px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.big{font-size:38px;font-weight:650;line-height:1.06;letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:#101a2b}
+.big small{font-size:14px;color:var(--dim);font-weight:400;margin-left:5px;letter-spacing:0}
+.kvs{margin-top:14px;font-size:12.5px;color:var(--dim);line-height:2}
+.kvs b{color:var(--txt);font-weight:600}
+.dchip{display:inline-flex;align-self:flex-start;align-items:center;gap:5px;font-size:12px;border-radius:20px;
+  padding:2px 10px;margin-top:11px;background:#f2f5fa;color:#51637a;border:1px solid var(--line);
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.dchip.up{background:#eef5ff;color:#1d4ed8;border-color:#d3e2fb}
+.dchip.down{background:#fff6ec;color:#b4530a;border-color:#f7e0c8}
+.stale{color:#c0392b;font-weight:500}
+.err{color:var(--bad);font-size:12px}
+
+/* ---------- 分区标题 ---------- */
+.section-title{
+  display:flex;align-items:center;gap:10px;margin:38px 0 16px;
+  font-size:16px;font-weight:650;letter-spacing:.01em;counter-increment:sec;
+}
+.section-title::before{
+  content:counter(sec,decimal-leading-zero);
+  font-size:10.5px;font-weight:600;color:#1d4ed8;
+  background:#e9f0fe;border:1px solid #c8d9fb;
+  border-radius:6px;padding:2px 7px;letter-spacing:.08em;
+}
+.section-title::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
+
+/* ---------- 船闸卡片 ---------- */
+.lockname{font-size:15px;font-weight:650;margin-bottom:14px;min-height:20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.lockname::before{content:"";width:4px;height:15px;border-radius:2px;background:var(--accent,var(--up))}
+.lockname .tag{margin-left:auto;font-size:11px;color:var(--dim);border:1px solid var(--line);border-radius:20px;padding:2px 10px;font-weight:400;white-space:nowrap;background:var(--panel2)}
+#lockCards>.card:nth-child(1){--accent:#2563eb}
+#lockCards>.card:nth-child(2){--accent:#12a06a}
+#lockCards>.card:nth-child(3){--accent:#7c5cf0}
+.dirrow{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch}
+.dir{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.dir::before{content:"";position:absolute;inset:0 0 auto 0;height:2px;background:currentColor;opacity:.9}
+.dir.up{color:var(--up)}
+.dir.down{color:var(--down)}
+.dir .dname{font-size:11.5px;color:var(--dim);letter-spacing:.04em;margin-bottom:7px}
+.dir .num{font-size:32px;font-weight:650;line-height:1.04;font-variant-numeric:tabular-nums}
+.dir .split{font-size:11.5px;color:#5c6d84;margin-top:7px;white-space:nowrap}
+.dir .split b{color:#16233a;font-weight:600}
+.dir .meta{font-size:10.5px;color:var(--dim);margin-top:3px;white-space:nowrap;letter-spacing:.01em}
+.prio-bar{height:5px;border-radius:3px;overflow:hidden;background:#e8eef7;display:flex;margin:11px 0 8px}
+.prio-bar i{display:block;height:100%;background:var(--prio);opacity:.8}
+.dir .mini{margin-top:auto;padding-top:2px}
+.mini{font-size:11.5px;color:var(--dim);margin-top:9px;line-height:1.75}
+.mini b{color:var(--prio);font-weight:600}
+.waterline{display:flex;gap:14px;font-size:13px;color:var(--sub)}
+.waterline b{color:var(--txt);font-size:15px}
+
+/* ---------- 参数条 ---------- */
+.controls{
+  display:flex;flex-wrap:wrap;gap:12px 26px;align-items:center;
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  box-shadow:var(--shadow);
+  padding:14px 18px;margin-bottom:16px;font-size:12.5px;
+}
+.controls label{color:var(--dim);display:inline-flex;align-items:center;gap:7px}
+.controls input,.controls select{
+  background:#fff;border:1px solid #d8e1ee;color:var(--txt);border-radius:8px;
+  padding:6px 9px;font-size:12.5px;font-family:inherit;transition:border-color .15s,box-shadow .15s;
+}
+.controls input{width:66px;text-align:right;font-variant-numeric:tabular-nums}
+.controls select{cursor:pointer;padding-right:8px}
+.controls input:focus,.controls select:focus{outline:none;border-color:#93b4f5;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.controls .hint{flex-basis:100%;color:#8a97ab;font-size:11.5px;line-height:1.7}
+
+/* ---------- 表格 ---------- */
+.eta-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;font-variant-numeric:tabular-nums}
+.eta-table th{
+  font-size:11px;font-weight:500;color:var(--dim);letter-spacing:.03em;text-align:right;
+  padding:0 12px 10px;border-bottom:1px solid var(--line);white-space:nowrap;
+}
+.eta-table th.lab{text-align:left}
+.eta-table th:first-child,.eta-table td:first-child{width:24%}
+.eta-table th:nth-child(2),.eta-table td:nth-child(2){width:16%}
+.eta-table td{text-align:right;padding:11px 12px;border-bottom:1px solid var(--line2);transition:background .12s;color:#2b3a4f}
+.eta-table tbody tr:last-child td{border-bottom:none}
+.eta-table tbody tr:hover td{background:#f7fafe}
+.eta-table td.lab{text-align:left;font-weight:600;color:#16233a}
+.eta-sub{font-size:10.5px;color:var(--dim);font-weight:400;margin-top:3px;letter-spacing:.01em}
+.eta-up{color:var(--up);font-weight:600}
+.eta-down{color:var(--down);font-weight:600}
+.eta-prio{color:var(--prio);font-weight:600}
+
+/* ---------- 合计框 ---------- */
+.total-box{
+  margin-top:18px;border-radius:12px;padding:16px 18px;font-size:13.5px;line-height:2;color:#43506a;
+  background:linear-gradient(180deg,#f5f2ff 0%,#fff 100%);
+  border:1px solid #e3dcfb;
+}
+.total-box b{color:#5b3fd6;font-weight:650}
+
+/* ---------- 说明 ---------- */
+details.note{
+  margin-top:18px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:12px;color:#67788f;font-size:12px;line-height:1.9;
+}
+details.note summary{
+  cursor:pointer;padding:12px 18px;color:#3f4f66;font-size:12px;font-weight:600;
+  list-style:none;display:flex;align-items:center;gap:8px;
+}
+details.note summary::-webkit-details-marker{display:none}
+details.note summary::before{
+  content:"?";display:inline-flex;width:16px;height:16px;align-items:center;justify-content:center;
+  border-radius:50%;border:1px solid #d5dce8;font-size:10px;color:#8794a8;flex:none;
+}
+details.note[open] summary{border-bottom:1px solid var(--line)}
+details.note>div{padding:12px 18px 16px}
+
+/* ---------- 徽标 ---------- */
+.pill{display:inline-block;font-size:11px;border-radius:20px;padding:2px 9px;margin-left:6px;font-weight:500;white-space:nowrap}
+.pill.calc{background:#e9f8f0;color:#0d7a4d;border:1px solid #bfe9d4}
+.pill.est{background:#fdf3e3;color:#a15c00;border:1px solid #f3dcb6}
+.pill.live{background:#e9f8f0;color:#0d7a4d;border:1px solid #bfe9d4}
+
+/* ---------- 减载卡 ---------- */
+.etitle{font-size:12px!important;color:#6b7c94!important;font-weight:500!important;line-height:1.55;display:block!important;margin-bottom:12px;letter-spacing:.01em}
+.dl-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;font-variant-numeric:tabular-nums}
+.dl-table th{font-size:11px;font-weight:500;color:var(--dim);padding:0 2px 8px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+.dl-table th:first-child{text-align:left}
+.dl-table td{padding:9px 2px;text-align:right;border-bottom:1px solid var(--line2);white-space:nowrap;color:#2b3a4f}
+.dl-table tr:last-child td{border-bottom:none}
+.dl-table td:first-child{text-align:left;font-weight:600;color:#16233a}
+.dl-table .lv{color:var(--sub)}
+.dl-n{color:#d92d20;font-weight:650;font-size:15px}
+.dl-n.zero{color:var(--ok)}
+.dl-in{width:62px;background:#fff;border:1px solid #d8e1ee;color:var(--txt);border-radius:8px;padding:5px 8px;font-size:13px;text-align:right;font-family:inherit;font-variant-numeric:tabular-nums}
+.dl-in:focus{outline:none;border-color:#93b4f5;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.dl-ctl{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);margin-bottom:10px;flex-wrap:wrap;min-height:34px}
+.dl-ctl b{color:var(--txt);font-size:14px}
+
+/* ---------- 图表 / 页脚 ---------- */
+.hist-wrap{display:grid;grid-template-columns:336px minmax(0,1fr);gap:22px;align-items:start}
+.hist-chart{min-width:0}
+.hist-list{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel2)}
+.hist-table{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+.hist-table th{
+  font-size:11px;font-weight:500;color:var(--dim);letter-spacing:.02em;text-align:left;
+  padding:8px 10px;background:#fff;border-bottom:1px solid var(--line);white-space:nowrap;
+}
+.hist-table th:nth-child(even),.hist-table td.v{text-align:right}
+.hist-table th:nth-child(3),.hist-table td:nth-child(3){border-left:1px solid var(--line2);padding-left:14px}
+.hist-table td{padding:4px 10px;border-bottom:1px solid var(--line2);color:#5b6b82;line-height:1.55;white-space:nowrap}
+.hist-table td.v{padding-right:14px}
+.hist-table td.v{font-weight:600;color:#16233a}
+.hist-table tr:last-child td{border-bottom:none}
+.hist-table tr.now td{background:#eef5ff;color:#1d4ed8}
+.hist-table tr.now td.v{color:#1d4ed8}
+svg{display:block;width:100%;height:auto}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--sub);margin-top:8px;flex-wrap:wrap}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.foot{margin-top:38px;padding-top:16px;border-top:1px solid var(--line);color:#8794a8;font-size:11.5px;line-height:1.85}
+.foot code{background:#eef2f8;padding:1px 5px;border-radius:4px;font-size:11px;color:#43506a}
+
+/* ---------- 响应式 ---------- */
+@media(max-width:1080px){
+  .cols-4{grid-template-columns:repeat(2,1fr)}
+  .cols-3{grid-template-columns:1fr}
+  .cols-water{grid-template-columns:1fr}
+  .hist-wrap{grid-template-columns:1fr;gap:16px}
+  .hist-list{max-height:none;overflow:visible}
+}
+@media(max-width:760px){
+  body{padding:16px 12px 36px;font-size:13.5px}
+  h1{font-size:18px}
+  .cols-water{grid-template-columns:1fr}
+  .cols-water>.card:first-child h3{min-width:0}
+  .head{padding-bottom:12px}
+  .head .upd{margin-left:0;width:100%}
+  .src{font-size:11px;margin:10px 0 16px}
+  .card{padding:15px 15px}
+  .big{font-size:32px}
+  .dir{padding:12px}
+  .dir .num{font-size:26px}
+  .section-title{font-size:15px;margin:30px 0 12px}
+  .eta-table,.dl-table{font-size:12px}
+  .eta-table th,.eta-table td{padding:8px 6px}
+  .eta-table th:nth-child(5),.eta-table td:nth-child(5){display:none}
+  .eta-table th:nth-child(2),.eta-table td:nth-child(2){padding-right:2px}
+  .controls{gap:10px 16px;padding:12px 14px}
+  .lockname .tag{font-size:10.5px}
+  .hist-chart{overflow-x:auto}
+  .hist-chart svg{min-width:560px}
+  .total-box{font-size:12.5px;padding:13px 14px}
+  details.note summary{padding:11px 14px}
+  details.note>div{padding:11px 14px 14px}
+}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>西江水情与船闸待闸看板</h1>
+  <span class="upd">数据更新：<span id="updated">—</span>
+    <span id="liveBadge" class="pill est">待闸实时刷新中…</span></span>
+</div>
+<div class="src">
+  梧州（四）水位（减载同源）：广西水运门户·水文（每小时，含流量），水利部每日值兜底｜
+  待闸与优先船：<a href="https://gzfw.gxyhzx.cn/ship-lock/schedule-info" target="_blank">广西水运江河海一体化智慧调度·公众服务</a>（实时公开）
+</div>
+
+<!-- 实时水位 / 减载 / 三闸待闸：同一块（三列对齐） -->
+<div class="grid cols-water" id="waterCards"></div>
+<div class="mini" id="draftNote" style="margin-top:10px"></div>
+<div class="grid cols-3" id="lockCards" style="margin-top:14px"></div>
+
+<!-- 水位趋势 -->
+<div class="section-title">水位趋势 · 梧州（四）近 20 天（每日 08:00）</div>
+<div class="card">
+  <h3>梧州（四）西江水位（米，珠江基面 · 每日 08:00）</h3>
+  <div class="hist-wrap">
+    <div class="hist-list" id="histList"></div>
+    <div class="hist-chart" id="chartWuzhou"></div>
+  </div>
+  <div class="mini" id="chartWuzhouNote"></div>
+</div>
+
+<!-- 耗时预估 -->
+<div class="section-title">过闸等待耗时预估（模型计算，非官方发布）</div>
+<div class="controls">
+  <span><label>长洲 单方向日通过能力 <input id="cap_CZ" type="number" value="140" min="1"> 艘/天</label></span>
+  <span><label>桂平 <input id="cap_GP" type="number" value="65" min="1"> 艘/天</label></span>
+  <span><label>大藤峡 <input id="cap_DTX" type="number" value="30" min="1"> 艘/天</label></span>
+  <span><label>优先船折减系数 <input id="prioK" type="number" value="0.4" step="0.05" min="0.05" max="1"></label></span>
+  <span><label>口径 <select id="countMode">
+    <option value="all">按待闸合计（锚地＋靠船墩）</option>
+    <option value="new">按新报到排队（剔除预登记）</option>
+  </select></label></span>
+  <span class="hint">普通等待 = 前方排队 ÷ 单方向日通过能力；优先等待 = 普通等待 × 折减系数。默认值由近期过闸艘数反推，可按经验修改。</span>
+</div>
+<div class="card">
+  <table class="eta-table" id="etaTable">
+    <thead><tr>
+      <th class="lab">船闸 / 方向</th><th>前方待闸（艘）</th><th>普通船预计等待</th><th>优先船预计等待</th><th>其中优先船</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+  <div class="controls" style="margin-top:14px;margin-bottom:0">
+    <span><label>优先船全程：长洲→桂平→大藤峡，每闸闸内操作 <input id="lockHours" type="number" value="3" step="0.5" min="0.5"> 小时</label></span>
+    <span><label>三段航行合计 <input id="sailHours" type="number" value="14" step="1" min="0"> 小时</label></span>
+    <span class="hint">船从梧州方向上行依次过长洲、桂平、大藤峡；如走下行可自行反向套用各闸数字。</span>
+  </div>
+  <div class="total-box" id="totalBox"></div>
+  <details class="note">
+    <summary>口径说明与免责（点开查看）</summary>
+    <div>
+    ①三闸卡片的<b>大字＝官网“共 N 艘”</b>（默认“锚地待闸”页签、所选方向），可直接对照；
+    小字“合计”＝锚地待闸＋靠船墩待闸，<b>耗时预估一律按合计计算</b>。
+    每次打开或刷新本页都会直连官网接口重取待闸数（标题右侧显示刷新时间）；<b>水位仍需跑一次 update_data.py 才更新</b>，
+    “优先船构成”取自最近一次采集。
+    ②“优先船”指官方标注的应急抢险、军事运输、重点急物资、客班轮、公务、LNG、集装箱、积分排第一、危险品等类型。
+    ③大藤峡官方待闸数含大量<b>预登记船舶（尚未到锚地）</b>，可在“口径”下拉里切到“新报到”剔除预登记。
+    ④等待时间不含船闸故障、停航检修、流量管制等异常工况；一切以调度中心实际安排为准（长洲 0774-3100771，桂平/大藤峡 0774-3100772）。
+    </div>
+  </details>
+</div>
+
+<div class="foot">
+  本页为静态看板：先运行 <code>python update_data.py</code> 生成 data.js，再双击打开本文件即可。
+  建议用 Windows 任务计划每天 08:15、20:15 各运行一次。数据仅供参考，不作为航行、配载、合同依据。
+</div>
+
+<script>
+// 由 update_data.py 自动生成，请勿手改
+window.BOARD_DATA = {
+ "updated": "2026-11-09 22:40:45",
+ "latest": {
+  "ts": "2026-11-09 22:40:45",
+  "date": "2026-11-09",
+  "wuzhou": {
+   "ok": true,
+   "z": 2.47,
+   "tm": "2026-11-09 20:00:00",
+   "q": 3150.0,
+   "stnm": "梧州（四）",
+   "src": "portal"
+  },
+  "locks": {
+   "CZ": {
+    "todayPassedCount": 243,
+    "yesterdayPassedCount": 254,
+    "directions": {
+     "up": {
+      "total": 89,
+      "priority": 4,
+      "normal": 69,
+      "byStatus": {
+       "anchor_wait": 73,
+       "pier_wait": 16
+      },
+      "priorityBreakdown": {
+       "non_mine_container": 2,
+       "points_exchange": 2
+      },
+      "waitingCount": 89,
+      "newWaitingCount": 89,
+      "preRegisteredCount": 0
+     },
+     "down": {
+      "total": 495,
+      "priority": 36,
+      "normal": 443,
+      "byStatus": {
+       "anchor_wait": 479,
+       "pier_wait": 16
+      },
+      "priorityBreakdown": {
+       "lng_subsidized": 1,
+       "non_mine_container": 2,
+       "points_exchange": 33
+      },
+      "waitingCount": 495,
+      "newWaitingCount": 495,
+      "preRegisteredCount": 0
+     }
+    }
+   },
+   "GP": {
+    "todayPassedCount": 136,
+    "yesterdayPassedCount": 143,
+    "directions": {
+     "up": {
+      "total": 110,
+      "priority": 0,
+      "normal": 102,
+      "byStatus": {
+       "anchor_wait": 102,
+       "pier_wait": 8
+      },
+      "priorityBreakdown": {},
+      "waitingCount": 110,
+      "newWaitingCount": 110,
+      "preRegisteredCount": 0
+     },
+     "down": {
+      "total": 499,
+      "priority": 1,
+      "normal": 491,
+      "byStatus": {
+       "anchor_wait": 492,
+       "pier_wait": 7
+      },
+      "priorityBreakdown": {
+       "non_mine_container": 1
+      },
+      "waitingCount": 499,
+      "newWaitingCount": 296,
+      "preRegisteredCount": 203
+     }
+    }
+   },
+   "DTX": {
+    "todayPassedCount": 61,
+    "yesterdayPassedCount": 67,
+    "directions": {
+     "up": {
+      "total": 1375,
+      "priority": 83,
+      "normal": 1286,
+      "byStatus": {
+       "anchor_wait": 1369,
+       "pier_wait": 6
+      },
+      "priorityBreakdown": {
+       "lng_subsidized": 22,
+       "non_mine_container": 55,
+       "lng_non_subsidized": 6
+      },
+      "waitingCount": 1375,
+      "newWaitingCount": 600,
+      "preRegisteredCount": 775
+     },
+     "down": {
+      "total": 658,
+      "priority": 34,
+      "normal": 617,
+      "byStatus": {
+       "anchor_wait": 651,
+       "pier_wait": 7
+      },
+      "priorityBreakdown": {
+       "lng_subsidized": 17,
+       "non_mine_container": 6,
+       "lng_non_subsidized": 11
+      },
+      "waitingCount": 658,
+      "newWaitingCount": 600,
+      "preRegisteredCount": 58
+     }
+    }
+   }
+  }
+ },
+ "daily": [
+  {
+   "date": "2026-11-04",
+   "wuzhou": 2.17,
+   "locks": {
+    "CZ": {
+     "upTotal": 67,
+     "downTotal": 582,
+     "upPrio": 3,
+     "downPrio": 36,
+     "todayPassed": 239
+    },
+    "GP": {
+     "upTotal": 185,
+     "downTotal": 508,
+     "upPrio": 1,
+     "downPrio": 2,
+     "todayPassed": 124
+    },
+    "DTX": {
+     "upTotal": 1477,
+     "downTotal": 632,
+     "upPrio": 85,
+     "downPrio": 35,
+     "todayPassed": 60
+    }
+   }
+  },
+  {
+   "date": "2026-11-05",
+   "wuzhou": 2.21,
+   "locks": {
+    "CZ": {
+     "upTotal": 74,
+     "downTotal": 549,
+     "upPrio": 5,
+     "downPrio": 28,
+     "todayPassed": 246
+    },
+    "GP": {
+     "upTotal": 172,
+     "downTotal": 521,
+     "upPrio": 2,
+     "downPrio": 1,
+     "todayPassed": 119
+    },
+    "DTX": {
+     "upTotal": 1455,
+     "downTotal": 644,
+     "upPrio": 86,
+     "downPrio": 35,
+     "todayPassed": 55
+    }
+   }
+  },
+  {
+   "date": "2026-11-09",
+   "wuzhou": 2.47,
+   "locks": {
+    "CZ": {
+     "upTotal": 89,
+     "downTotal": 495,
+     "upPrio": 4,
+     "downPrio": 36,
+     "todayPassed": 243
+    },
+    "GP": {
+     "upTotal": 110,
+     "downTotal": 499,
+     "upPrio": 0,
+     "downPrio": 1,
+     "todayPassed": 136
+    },
+    "DTX": {
+     "upTotal": 1375,
+     "downTotal": 658,
+     "upPrio": 83,
+     "downPrio": 34,
+     "todayPassed": 61
+    }
+   }
+  }
+ ],
+ "wuzhouDaily": [
+  {
+   "date": "10-21",
+   "z": 2.1,
+   "tm": "08:00",
+   "exact": true,
+   "n": 23
+  },
+  {
+   "date": "10-22",
+   "z": 2.01,
+   "tm": "08:00",
+   "exact": true,
+   "n": 23
+  },
+  {
+   "date": "10-23",
+   "z": 2.23,
+   "tm": "08:00",
+   "exact": true,
+   "n": 24
+  },
+  {
+   "date": "10-24",
+   "z": 2.44,
+   "tm": "08:00",
+   "exact": true,
+   "n": 20
+  },
+  {
+   "date": "10-25",
+   "z": 2.54,
+   "tm": "08:00",
+   "exact": true,
+   "n": 19
+  },
+  {
+   "date": "10-26",
+   "z": 2.48,
+   "tm": "08:00",
+   "exact": true,
+   "n": 20
+  },
+  {
+   "date": "10-27",
+   "z": 2.5,
+   "tm": "08:00",
+   "exact": true,
+   "n": 18
+  },
+  {
+   "date": "10-28",
+   "z": 2.42,
+   "tm": "08:00",
+   "exact": true,
+   "n": 19
+  },
+  {
+   "date": "10-29",
+   "z": 2.48,
+   "tm": "08:00",
+   "exact": true,
+   "n": 6
+  },
+  {
+   "date": "10-30",
+   "z": 2.5,
+   "tm": "09:00",
+   "exact": false,
+   "n": 7
+  },
+  {
+   "date": "10-31",
+   "z": 2.46,
+   "tm": "12:00",
+   "exact": false,
+   "n": 1
+  },
+  {
+   "date": "11-01",
+   "z": 2.42,
+   "tm": "16:00",
+   "exact": false,
+   "n": 1
+  },
+  {
+   "date": "11-02",
+   "z": 2.12,
+   "tm": "10:00",
+   "exact": false,
+   "n": 8
+  },
+  {
+   "date": "11-03",
+   "z": 2.02,
+   "tm": "08:00",
+   "exact": true,
+   "n": 16
+  },
+  {
+   "date": "11-04",
+   "z": 2.17,
+   "tm": "08:00",
+   "exact": true,
+   "n": 14
+  },
+  {
+   "date": "11-05",
+   "z": 2.21,
+   "tm": "08:00",
+   "exact": true,
+   "n": 13
+  },
+  {
+   "date": "11-06",
+   "z": 2.19,
+   "tm": "08:00",
+   "exact": true,
+   "n": 12
+  },
+  {
+   "date": "11-07",
+   "z": 2.45,
+   "tm": "08:00",
+   "exact": true,
+   "n": 17
+  },
+  {
+   "date": "11-08",
+   "z": 2.69,
+   "tm": "08:00",
+   "exact": true,
+   "n": 22
+  },
+  {
+   "date": "11-09",
+   "z": 2.63,
+   "tm": "08:00",
+   "exact": true,
+   "n": 18
+  }
+ ],
+ "loadModel": {
+  "params": {
+   "wz": {
+    "D": 34.49999999361864,
+    "a": 1.1053370645327567,
+    "p": 1.1422848210727452,
+    "h0": 3.061665472705339
+   },
+   "dlk": {
+    "D": 42.26541563921474,
+    "a": 2.1384150023801,
+    "p": 0.8500000003724608,
+    "h0": 3.0399999999958287
+   },
+   "zjc": {
+    "D": 20.699999990936785,
+    "a": 2.074497789926595,
+    "p": 1.1696466254759053,
+    "h0": 2.7400420926508495
+   }
+  },
+  "sigma": {
+   "wz": 1.1387865870361573,
+   "dlk": 1.9356282459607244,
+   "zjc": 2.1456752178591896
+  },
+  "n_obs": 45,
+  "fitted_at": "2026-11-05 20:04:00"
+ }
+};
+</script>
+<script>
+const D = window.BOARD_DATA;
+const LOCK_META = {
+  CZ:  {name:"长洲水利枢纽", short:"长洲"},
+  GP:  {name:"桂平航运枢纽", short:"桂平"},
+  DTX: {name:"大藤峡水利枢纽", short:"大藤峡"}
+};
+const ORDER = ["CZ","GP","DTX"];
+const PRIORITY_LABELS = {
+  emergency_rescue:"应急抢险", military_transport:"军事运输", urgent_material:"重点急物资",
+  passenger_liner:"客班轮", official_task:"执行公务", lng_non_subsidized:"普通LNG",
+  lng_subsidized:"已补贴LNG", non_mine_container:"非矿建集装箱", mine_container:"矿建集装箱",
+  points_exchange:"积分排第一", special_ship:"特殊船", dangerOne:"一类危险品", dangerTwo:"二类危险品"
+};
+
+function fmt(n){ return (n===null||n===undefined) ? "—" : n.toLocaleString("zh-CN"); }
+function hoursText(h){
+  if(!isFinite(h)) return "—";
+  if(h < 1) return Math.round(h*60)+" 分钟";
+  if(h < 48) return h.toFixed(1)+" 小时";
+  return (h/24).toFixed(1)+" 天";
+}
+
+/* ---------- 水位 + 减载计算卡片 ---------- */
+/* 水位减载公式：x = max(0, h0 - h)；减载柜数 d = D·(1 - e^(-a·x^p))
+   参数由 loading_model.json 拟合（update_data.py 注入到 data.js 的 loadModel 字段） */
+const BOXES = 85;
+const LOAD_PORTS = [["wz","梧州（李家庄）"], ["dlk","大利口"], ["zjc","紫金村"]];
+const LOAD_FALLBACK = {
+  wz:  {D: 34.500, a: 1.10534, p: 1.14228, h0: 3.06167},
+  dlk: {D: 42.265, a: 2.13842, p: 0.85000, h0: 3.04000},
+  zjc: {D: 20.700, a: 2.07450, p: 1.16965, h0: 2.74004}
+};
+const LM = (D.loadModel && D.loadModel.params) ? D.loadModel.params : LOAD_FALLBACK;
+
+function offload(h, m){
+  if(h===null || h===undefined || !isFinite(h) || h<=0) return null;
+  const x = Math.max(0, m.h0 - h);
+  const d = m.D * (1 - Math.exp(-m.a * Math.pow(x, m.p)));
+  const boxes = Math.max(0, Math.min(BOXES, Math.round(d)));
+  return {d: d, boxes: boxes, rate: d / BOXES};
+}
+function dlRows(prefix, h){
+  return LOAD_PORTS.map(function(p){
+    const r = offload(h, LM[p[0]] || {D:0,a:1,p:1,h0:0});
+    return `<tr>
+      <td>${p[1]}</td>
+      <td class="dl-n ${(!r||r.boxes===0)?"zero":""}" id="${prefix}_${p[0]}_n">${r?r.boxes:"—"}</td>
+      <td id="${prefix}_${p[0]}_r">${r?(r.rate*100).toFixed(1)+"%":"—"}</td>
+    </tr>`;
+  }).join("");
+}
+const DL_HEAD = `<thead><tr><th>港口</th><th>减载(个)</th><th>减载率</th></tr></thead>`;
+
+let MAN_VAL = null;   // 自定水位栏：null = 未手动输入，跟随发布水位
+
+function buildWaterCards(keepMan){
+  const wz = D.latest.wuzhou || {};
+  const hPub = (wz.ok && isFinite(+wz.z)) ? +wz.z : null;
+  const hMan = (keepMan && MAN_VAL !== null) ? MAN_VAL : hPub;
+  const TITLE = "3000吨集装箱驳船满载为85个，当前水位需要减载：";
+  const srcName = wz.src === "mwr" ? "水利部全国水雨情网（每日8:00）" : "广西水运门户·水文（每小时）";
+  const qTxt = (wz.q !== null && wz.q !== undefined && isFinite(+wz.q))
+    ? " · 流量 " + Math.round(+wz.q) + " m³/s" : "";
+  const box = document.getElementById("waterCards");
+  const daily = (D.wuzhouDaily || []).slice(-21).filter(r => r && isFinite(+r.z));
+  let chip = "", extra = "";
+  if(daily.length >= 2){
+    const last = daily[daily.length-1], prev = daily[daily.length-2];
+    const dlt = (+last.z) - (+prev.z);
+    const cls = dlt > 0.005 ? "up" : (dlt < -0.005 ? "down" : "flat");
+    const arrow = dlt > 0.005 ? "↑" : (dlt < -0.005 ? "↓" : "→");
+    chip = `<div class="dchip ${cls}">较 ${prev.date} ${arrow} ${Math.abs(dlt).toFixed(2)} 米</div>`;
+    const zs = daily.map(r => +r.z);
+    extra = `<br>近 ${daily.length} 天区间 <b>${Math.min(...zs).toFixed(2)} ~ ${Math.max(...zs).toFixed(2)}</b> 米`;
+  }
+  box.innerHTML = `
+    <div class="card">
+      <h3>梧州（四）· 西江水位</h3>
+      <div class="wz-main">
+        <div class="big">${wz.ok ? Number(wz.z).toFixed(2) : "—"}<small>米</small></div>
+        ${chip}
+      </div>
+      <div class="kvs">观测时间：<b>${wz.ok ? wz.tm : "取数失败"}</b>${qTxt}<br>基面：珠江基面 ｜ 来源：${wz.ok ? srcName : "—"}${extra}</div>
+    </div>
+    <div class="card">
+      <h3 class="etitle">${TITLE}</h3>
+      <div class="dl-ctl">按公布水位 <b>${hPub===null?"—":Number(hPub).toFixed(2)}</b> 米<span class="pill est">估算</span>${wz.tm?"<span style=\"color:#8794a8;font-size:11.5px\">· "+wz.tm+"</span>":""}</div>
+      <table class="dl-table">${DL_HEAD}<tbody>${dlRows("pub", hPub)}</tbody></table>
+    </div>
+    <div class="card">
+      <h3 class="etitle">${TITLE}</h3>
+      <div class="dl-ctl">自定水位 <input class="dl-in" id="manLevel" type="number" step="0.01" inputmode="decimal" value="${hMan===null?"":Number(hMan).toFixed(2)}"> 米</div>
+      <table class="dl-table">${DL_HEAD}<tbody>${dlRows("man", hMan)}</tbody></table>
+      <div class="mini">输入任意水位，即时重算</div>
+    </div>`;
+  document.getElementById("updated").textContent = D.updated;
+
+  // 手动水位 → 只更新结果单元格，输入框不失焦
+  document.getElementById("manLevel").addEventListener("input", function(e){
+    const v = parseFloat(e.target.value);
+    const h = isFinite(v) ? v : null;
+    MAN_VAL = h;
+    LOAD_PORTS.forEach(function(p){
+      const r = offload(h, LM[p[0]] || {D:0,a:1,p:1,h0:0});
+      const n = document.getElementById("man_" + p[0] + "_n");
+      const rate = document.getElementById("man_" + p[0] + "_r");
+      if(!n || !rate) return;
+      n.textContent = r ? r.boxes : "—";
+      n.className = "dl-n" + ((!r || r.boxes===0) ? " zero" : "");
+      rate.textContent = r ? (r.rate*100).toFixed(1) + "%" : "—";
+    });
+  });
+
+  const lmMeta = D.loadModel || {};
+  document.getElementById("draftNote").innerHTML =
+    `减载模型：减载柜数 ＝ D×(1−e<sup>−a·x^p</sup>)，x ＝ max(0, h0 − 梧州站水位)（水位减载公式）；` +
+    `参数由 ${lmMeta.n_obs || 45} 条证据拟合${lmMeta.fitted_at ? "（"+lmMeta.fitted_at+"）" : ""}，取自 loading_model.json。` +
+    `水位为梧州（四）站数值（珠江基面），与顶部水位卡同源。` +
+    `<span class="pill est">估算</span> 实际配载以梧州航道和船检管理中心当日通告与装船吃水为准。`;
+}
+buildWaterCards(false);
+
+/* ---------- 待闸卡片 ---------- */
+function buildLockCards(){
+  const box = document.getElementById("lockCards");
+  box.innerHTML = ORDER.map(code=>{
+    const lk = D.latest.locks[code], m = LOCK_META[code];
+    return [code, lk, ["up","down"].map(dir=>{
+      const d = lk.directions[dir];
+      const a = d.byStatus.anchor_wait||0, p = d.byStatus.pier_wait||0;
+      const pct = d.total? Math.round(d.priority/d.total*100):0;
+      const tip = Object.entries(d.priorityBreakdown||{})
+        .sort((a,b)=>b[1]-a[1])
+        .map(([t,n])=>`${PRIORITY_LABELS[t]||t}：${n}艘`).join("\n");
+      return `<div class="dir ${dir}">
+        <div class="dname">${dir==="up"?"上行 ↑":"下行 ↓"}</div>
+        <div class="num">${fmt(a)}</div>
+        <div class="split">合计 <b>${fmt(d.total)}</b> 艘</div>
+        <div class="meta">锚地 ${fmt(a)} · 靠船墩 ${fmt(p)}</div>
+        <div class="meta">新报到 ${fmt(d.newWaitingCount??"—")} · 预登记 ${fmt(d.preRegisteredCount??"—")}</div>
+        <div class="prio-bar"><i style="width:${pct}%"></i></div>
+        <div class="mini" title="${tip}">优先船 <b>${fmt(d.priority)}</b> 艘 · ${pct}%</div>
+      </div>`;
+    }).join("")];
+  }).map(([code,lk,inner])=>{
+    const m = LOCK_META[code];
+    return `<div class="card">
+      <div class="lockname">${m.name}<span class="tag">今日已过 ${fmt(lk.todayPassedCount)} · 昨日 ${fmt(lk.yesterdayPassedCount)}</span></div>
+      <div class="dirrow">${inner}</div>
+    </div>`;
+  }).join("");
+}
+buildLockCards();
+
+/* ---------- 耗时预估 ---------- */
+function buildETA(){
+  const mode = document.getElementById("countMode").value;
+  const k = parseFloat(document.getElementById("prioK").value)||0.4;
+  const rows = [];
+  window.__eta = {};
+  for(const code of ORDER){
+    const lk = D.latest.locks[code];
+    const cap = parseFloat(document.getElementById("cap_"+code).value)||1;
+    window.__eta[code] = {};
+    for(const [dir,cn] of [["up","上行"],["down","下行"]]){
+      const d = lk.directions[dir];
+      const q = mode==="all" ? d.total : (d.newWaitingCount ?? d.total);
+      const normalH = q/cap*24;
+      const prioH = normalH*k;
+      window.__eta[code][dir] = {normalH, prioH, q};
+      rows.push(`<tr>
+        <td class="lab">${LOCK_META[code].short} · ${cn}<div class="eta-sub">锚地 ${fmt(d.byStatus.anchor_wait||0)} · 靠船墩 ${fmt(d.byStatus.pier_wait||0)}</div></td>
+        <td>${fmt(q)}</td>
+        <td class="${dir==="up"?"eta-up":"eta-down"}">${hoursText(normalH)}</td>
+        <td class="eta-prio">${hoursText(prioH)}</td>
+        <td>${fmt(d.priority)}</td>
+      </tr>`);
+    }
+  }
+  document.querySelector("#etaTable tbody").innerHTML = rows.join("");
+
+  // 优先船上行走全程：长洲→桂平→大藤峡（下行反向同理，此处给上行示例）
+  const lockH = parseFloat(document.getElementById("lockHours").value)||0;
+  const sailH = parseFloat(document.getElementById("sailHours").value)||0;
+  let waitUp=0, waitDown=0;
+  for(const code of ORDER){ waitUp += window.__eta[code].up.prioH; waitDown += window.__eta[code].down.prioH; }
+  const ops = lockH*3;
+  document.getElementById("totalBox").innerHTML =
+    `优先船 <b>上行全程</b>（长洲→桂平→大藤峡）预计：三闸等待合计 <b>${hoursText(waitUp)}</b>
+     ＋ 闸内操作 ${hoursText(ops)} ＋ 航行 ${hoursText(sailH)} ＝ <b>${hoursText(waitUp+ops+sailH)}</b><br>
+     优先船 <b>下行全程</b>（大藤峡→桂平→长洲）预计：三闸等待合计 <b>${hoursText(waitDown)}</b>
+     ＋ 闸内操作 ${hoursText(ops)} ＋ 航行 ${hoursText(sailH)} ＝ <b>${hoursText(waitDown+ops+sailH)}</b>
+     <span class="pill est">估算</span>`;
+}
+["cap_CZ","cap_GP","cap_DTX","prioK","countMode","lockHours","sailHours"].forEach(id=>{
+  document.getElementById(id).addEventListener("input", buildETA);
+  document.getElementById(id).addEventListener("change", buildETA);
+});
+buildETA();
+
+/* ---------- 待闸实时刷新：浏览器直连官网公开接口（免登录、免后端） ---------- */
+const LIVE_API = "https://gzfw.gxyhzx.cn/api";
+const LIVE_HUB = {CZ:9, GP:8, DTX:15};
+
+function fetchJSON(url){
+  return fetch(url, {headers:{Accept:"application/json"}}).then(function(r){
+    if(!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  });
+}
+
+async function liveRefresh(){
+  const badge = document.getElementById("liveBadge");
+  const t0 = new Date();
+
+  // ① 梧州（四）水位：门户水文接口，逐小时（与水利部同站同基面）
+  let waterLive = false;
+  try{
+    const hy = await fetchJSON(LIVE_API + "/ws/hydrometeorology/hydrology/page?curpage=1&unitpage=1000&stnm=" + encodeURIComponent("梧州"));
+    const rows = (((hy || {}).data || {}).records || []).filter(function(r){
+      return String(r.stcd) === "80115000" && r.z !== null && r.z !== undefined;
+    });
+    rows.sort(function(a,b){ return String(b.tm||"").localeCompare(String(a.tm||"")); });
+    if(rows.length){
+      const r = rows[0];
+      D.latest.wuzhou = {ok:true, z: Math.round(+r.z*100)/100, tm: r.tm, q: r.q,
+                         stnm: r.stnm || "梧州（四）", src: "portal"};
+      D.wuzhouDaily = aggregateDaily(rows, 20);   // 近 20 天水位曲线一起刷新
+      waterLive = true;
+    }
+  }catch(e){
+    console.warn("水位实时刷新失败:", e);
+  }
+
+  try{
+    const stat = await fetchJSON(LIVE_API + "/ws/sched/declareQueue/open/statistics/list");
+    const byHub = {};
+    (stat.data || []).forEach(function(s){ byHub[String(s.hubId)] = s; });
+
+    for(const code of ORDER){
+      const hub = LIVE_HUB[code], st = byHub[String(hub)];
+      if(!st) continue;
+      const lk = D.latest.locks[code];
+      lk.todayPassedCount = st.todayPassedCount;
+      lk.yesterdayPassedCount = st.yesterdayPassedCount;
+      for(const dir of ["up","down"]){
+        const b = st[dir] || {}, d = lk.directions[dir];
+        d.waitingCount = b.waitingCount;
+        d.newWaitingCount = b.newWaitingCount;
+        d.preRegisteredCount = b.preRegisteredCount;
+        for(const status of ["anchor_wait","pier_wait"]){
+          const j = await fetchJSON(LIVE_API + "/ws/ship/lock/schedule-info/ships/page?pageNo=1&pageSize=1" +
+            "&hubId=" + hub + "&direction=" + dir + "&lockageStatus=" + status);
+          d.byStatus[status] = Number((j.data || {}).total || 0);
+        }
+        d.total = (d.byStatus.anchor_wait || 0) + (d.byStatus.pier_wait || 0);
+      }
+    }
+    buildWaterCards(true);
+    if(waterLive) buildHistory();
+    buildLockCards();
+    buildETA();
+    badge.textContent = (waterLive ? "水位·待闸已实时刷新 " : "待闸已实时刷新（水位沿用快照） ") + t0.toTimeString().slice(0,8);
+    badge.className = "pill live";
+  }catch(e){
+    badge.textContent = "实时刷新失败，显示上次采集的快照";
+    badge.className = "pill est";
+    console.warn("live refresh failed:", e);
+  }
+}
+liveRefresh();
+
+/* ---------- 极简 SVG 折线图 ---------- */
+function lineChart(el, series, labels, opts={}){
+  const rot = !!opts.rot;
+  // 1:1 像素绘图：viewBox 宽度跟随容器实际宽度，字号/线宽不再被拉伸放大
+  const W = Math.max(560, Math.round(el.clientWidth || 640));
+  const narrow = W < 700;
+  const P=44, top=16;
+  const plotH = Math.round(Math.min(Math.max(W*0.26,150),250));   // 更扁的绘图区
+  const B = rot ? 56 : 28;
+  const base = top + plotH;
+  const H = base + B;
+  if(labels.length<2){ el.innerHTML = `<div style="height:${H}px;display:flex;align-items:center;justify-content:center;color:#8794a8;font-size:13px">历史数据需运行两天以上，明天再采集一次后自动出曲线</div>`; return; }
+  const all = series.flatMap(s=>s.data).filter(v=>v!==null&&v!==undefined&&isFinite(v));
+  let mn = Math.min(...all), mx = Math.max(...all);
+  if(opts.min!==undefined) mn=opts.min;
+  const pad=(mx-mn)||1; mn-=pad*0.1; mx+=pad*0.1;
+  const x=i=>P+(W-P-18)*(labels.length===1?0.5:i/(labels.length-1));
+  const y=v=>base-plotH*(mx===mn?0.5:(v-mn)/(mx-mn));
+  const gid = "g" + Math.random().toString(36).slice(2, 8);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  if(opts.area){
+    svg+=`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">`
+       + `<stop offset="0%" stop-color="${series[0].color}" stop-opacity="0.18"/>`
+       + `<stop offset="100%" stop-color="${series[0].color}" stop-opacity="0"/></linearGradient></defs>`;
+  }
+  for(let g=0;g<4;g++){
+    const yy=base-plotH*g/3, val=mn+(mx-mn)*g/3;
+    svg+=`<line x1="${P}" y1="${yy}" x2="${W-10}" y2="${yy}" stroke="#eef2f8" stroke-width="1"/>`;
+    svg+=`<text x="${P-9}" y="${yy+3.5}" fill="#8a97ab" font-size="10" text-anchor="end">${val.toFixed(opts.dp??1)}</text>`;
+  }
+  svg+=`<line x1="${P}" y1="${base}" x2="${W-10}" y2="${base}" stroke="#dbe3ee" stroke-width="1"/>`;
+  const fmt = lb => { const t = String(lb).length>5 ? String(lb).slice(5) : String(lb); return t.replace(/-/g,"/"); };
+  if(rot){
+    // 45° 倾斜，每天一个，标签顶端对齐刻度
+    labels.forEach((lb,i)=>{
+      const lx=x(i), ly=base+14;
+      svg+=`<text x="${lx}" y="${ly}" fill="#8794a8" font-size="10.5" text-anchor="end" transform="rotate(-45 ${lx} ${ly})">${fmt(lb)}</text>`;
+    });
+  } else {
+    const step=Math.ceil(labels.length/8);
+    labels.forEach((lb,i)=>{ if(i%step===0) svg+=`<text x="${x(i)}" y="${base+16}" fill="#8794a8" font-size="10" text-anchor="middle">${fmt(lb)}</text>`; });
+  }
+  series.forEach(s=>{
+    if(opts.area){
+      const vp = s.data.map((v,i)=>(v!==null&&v!==undefined&&isFinite(v))?`${x(i)},${y(v)}`:null).filter(Boolean);
+      if(vp.length>1) svg+=`<polygon points="${vp.join(" ")} ${x(s.data.length-1)},${base} ${x(0)},${base}" fill="url(#${gid})"/>`;
+    }
+    const pts=s.data.map((v,i)=>v===null?null:`${x(i)},${y(v)}`).filter(Boolean).join(" ");
+    svg+=`<polyline points="${pts}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    // 数据点：白描边小圆点；最后一天加一圈光环强调
+    s.data.forEach((v,i)=>{
+      if(v===null||v===undefined||!isFinite(v)) return;
+      const isLast = i===s.data.length-1;
+      if(isLast) svg+=`<circle cx="${x(i)}" cy="${y(v)}" r="7" fill="${s.color}" opacity=".16"/>`;
+      svg+=`<circle cx="${x(i)}" cy="${y(v)}" r="${isLast?4:3}" fill="${s.color}" stroke="#fff" stroke-width="1.4"/>`;
+    });
+    // 数值标签：交替上下错开，避免相邻标签撞在一起；最后一天加粗、用主色
+    if(opts.marks){
+      const n = s.data.length;
+      s.data.forEach((v,i)=>{
+        if(v===null||v===undefined||!isFinite(v)) return;
+        const yy=y(v), xi=x(i);
+        let below = (i % 2 === 1);
+        if(!below && yy < top + 20) below = true;      // 顶部点放下方
+        const ty = below ? yy + 13 : yy - 8;
+        const anchor = (i===0) ? "start" : (i===n-1 ? "end" : "middle");
+        const tx = (i===0) ? xi + 2 : (i===n-1 ? xi - 2 : xi);
+        const isLast = (i === n-1);
+        svg+=`<text x="${tx}" y="${ty}" fill="${isLast?s.color:"#8a97ab"}" font-size="${isLast?11:10}" font-weight="${isLast?600:400}" text-anchor="${anchor}" stroke="#fff" stroke-width="2.6" paint-order="stroke" stroke-linejoin="round">${(+v).toFixed(opts.dp??2)}</text>`;
+      });
+    }
+  });
+  svg+=`</svg>`; el.innerHTML=svg;
+}
+/* 按天取 08:00 水位：没有 08:00 记录时取当天最接近的一条 */
+function aggregateDaily(rows, days){
+  const byDay = {};
+  rows.forEach(function(r){
+    const d = String(r.tm || "").slice(0, 10);
+    if(!d) return;
+    (byDay[d] = byDay[d] || []).push(r);
+  });
+  const mins = function(tm){
+    const p = String(tm || "").slice(11, 16).split(":");
+    const h = +p[0], m = +p[1];
+    return (isFinite(h) ? h : 0) * 60 + (isFinite(m) ? m : 0);
+  };
+  return Object.keys(byDay).sort().slice(-days).map(function(d){
+    const recs = byDay[d];
+    let best = recs[0], bd = Infinity;
+    recs.forEach(function(r){
+      const diff = Math.abs(mins(r.tm) - 480);     // 480 = 08:00
+      if(diff < bd){ bd = diff; best = r; }
+    });
+    return {date: d.slice(5), z: Math.round((+best.z) * 100) / 100,
+            tm: String(best.tm || "").slice(11, 16), exact: bd === 0};
+  });
+}
+
+/* ---------- 历史趋势图 ---------- */
+function buildHistory(){
+  const arr = (D.wuzhouDaily && D.wuzhouDaily.length) ? D.wuzhouDaily
+            : (D.daily || []).map(function(r){ return {date: r.date, z: r.wuzhou}; });
+
+  // 左侧列表：两栏「日期 / 水位」，整体按时间倒序（最新在左栏第一行）
+  const list = document.getElementById("histList");
+  if(list){
+    const n = arr.length, half = Math.ceil(n / 2);
+    const cell = function(r, now){
+      if(!r) return `<td></td><td class="v"></td>`;
+      return `<td${now?' class="now-d"':''}>${String(r.date).replace(/-/g,"/")}</td>`
+           + `<td class="v">${Number(r.z).toFixed(2)}</td>`;
+    };
+    let rows = "";
+    for(let i = 0; i < half; i++){
+      const a = arr[n-1-i], b = arr[n-1-i-half];
+      rows += `<tr class="${i===0?"now":""}">${cell(a, i===0)}${cell(b, false)}</tr>`;
+    }
+    list.innerHTML = `<table class="hist-table">
+      <thead><tr><th>日期</th><th>水位（米）</th><th>日期</th><th>水位（米）</th></tr></thead>
+      <tbody>${rows}</tbody></table>`;
+  }
+
+  lineChart(document.getElementById("chartWuzhou"),
+    [{color:"#2563eb", data: arr.map(function(r){ return r.z; })}],
+    arr.map(function(r){ return r.date; }), {dp:2, marks:true, area:true, rot:true});
+
+  const note = document.getElementById("chartWuzhouNote");
+  if(note){
+    const odd = arr.filter(function(r){ return r.exact === false; });
+    note.textContent = odd.length
+      ? "注：" + odd.map(function(r){ return r.date + "（" + r.tm + "）"; }).join("、") +
+        " 门户当天没有 08:00 记录，取的是最接近的那一条。"
+      : "";
+  }
+}
+buildHistory();
+// 图表按容器实际像素绘制，窗口尺寸变化后重画一次
+let _histRz = null;
+window.addEventListener("resize", function(){
+  clearTimeout(_histRz);
+  _histRz = setTimeout(buildHistory, 220);
+});
+</script>
+</body>
+</html>
